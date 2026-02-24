@@ -4,7 +4,7 @@ A DOT-defined pipeline runner for multi-stage AI coding workflows.
 
 Implements three integrated layers:
 
-1. **Unified LLM Client** — Multi-provider SDK supporting Anthropic, OpenAI, and Gemini
+1. **Unified LLM Client** — Multi-provider SDK supporting Anthropic, OpenAI, Gemini, and Ollama (local models)
 2. **Coding Agent Loop** — Agentic tool-use loop with file editing, shell access, and search
 3. **Pipeline Engine** — DAG-based workflow orchestration using Graphviz DOT syntax
 
@@ -71,6 +71,63 @@ const result = await generate({
 console.log(result.text);
 ```
 
+### Use a Local Model via Ollama
+
+With [Ollama](https://ollama.com) running locally:
+
+```typescript
+import { Client } from "attractor";
+import { userMessage } from "attractor";
+
+// Auto-detected when Ollama is running (falls back to localhost:11434)
+const client = Client.fromEnv();
+const response = await client.complete({
+  model: "qwen3-coder:30b",
+  provider: "ollama",
+  messages: [userMessage("Hello!")],
+});
+console.log(response.message);
+```
+
+Or with explicit configuration:
+
+```typescript
+import { Client } from "attractor";
+import { OllamaAdapter } from "attractor";
+import { userMessage } from "attractor";
+
+const client = new Client({
+  providers: {
+    ollama: new OllamaAdapter({
+      base_url: "http://localhost:11434",
+      default_model: "qwen3-coder:30b",
+    }),
+  },
+});
+
+const response = await client.complete({
+  model: "qwen3-coder:30b",
+  provider: "ollama",
+  messages: [userMessage("Refactor this function to use async/await")],
+  tools: [/* your tool definitions */],
+});
+```
+
+Run a full agent session with a local model:
+
+```typescript
+import { Attractor } from "attractor";
+
+const attractor = await Attractor.create({
+  dotSource: "digraph { start [shape=ellipse] }",
+  provider: "ollama",
+  model: "qwen3-coder:30b",
+});
+
+const response = await attractor.runAgent("Add input validation to the user form");
+console.log(response);
+```
+
 ## Architecture
 
 ```
@@ -84,7 +141,7 @@ console.log(result.text);
 │  Provider profiles, steering, loop detect   │
 ├─────────────────────────────────────────────┤
 │          Unified LLM Client (L1)            │
-│  Anthropic · OpenAI · Gemini adapters       │
+│  Anthropic · OpenAI · Gemini · Ollama        │
 │  Streaming, retries, middleware, catalog    │
 └─────────────────────────────────────────────┘
 ```
@@ -122,11 +179,16 @@ Nodes are typed by shape:
 
 ## Environment Variables
 
-| Variable | Provider |
-|----------|----------|
-| `ANTHROPIC_API_KEY` | Anthropic (Claude) |
-| `OPENAI_API_KEY` | OpenAI (GPT) |
-| `GEMINI_API_KEY` or `GOOGLE_API_KEY` | Google (Gemini) |
+| Variable | Provider | Required |
+|----------|----------|----------|
+| `ANTHROPIC_API_KEY` | Anthropic (Claude) | Yes |
+| `OPENAI_API_KEY` | OpenAI (GPT) | Yes |
+| `GEMINI_API_KEY` or `GOOGLE_API_KEY` | Google (Gemini) | Yes |
+| `OLLAMA_HOST` or `OLLAMA_BASE_URL` | Ollama server URL (default: `http://localhost:11434`) | No |
+| `OLLAMA_API_KEY` | Ollama auth (for remote/proxied instances) | No |
+| `OLLAMA_MODEL` | Default Ollama model name | No |
+
+Ollama is registered automatically when `OLLAMA_HOST`/`OLLAMA_BASE_URL` is set, or as a local fallback when no cloud provider keys are configured.
 
 ## Project Structure
 
@@ -139,7 +201,8 @@ src/
 │   ├── providers/        # Provider implementations
 │   │   ├── anthropic.ts  # Anthropic Messages API
 │   │   ├── openai.ts     # OpenAI Responses API
-│   │   └── gemini.ts     # Google Gemini API
+│   │   ├── gemini.ts     # Google Gemini API
+│   │   └── ollama.ts     # Ollama (local models, Chat Completions API)
 │   ├── client.ts         # Client with routing & middleware
 │   └── generate.ts       # High-level API (generate, stream, generate_object)
 ├── agent/                # Layer 2: Coding Agent Loop
