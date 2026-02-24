@@ -13,6 +13,7 @@ import {
 import { AnthropicAdapter } from "./providers/anthropic.js";
 import { OpenAIAdapter } from "./providers/openai.js";
 import { GeminiAdapter } from "./providers/gemini.js";
+import { OllamaAdapter } from "./providers/ollama.js";
 
 export interface ClientConfig {
   providers?: Record<string, ProviderAdapter>;
@@ -74,6 +75,18 @@ export class Client {
       providers.gemini = new GeminiAdapter({
         api_key: geminiKey,
         base_url: process.env.GEMINI_BASE_URL,
+      });
+    }
+
+    // Ollama: register if OLLAMA_HOST or OLLAMA_BASE_URL is set,
+    // or if none of the cloud providers are configured (local-first fallback)
+    const ollamaHost =
+      process.env.OLLAMA_HOST ?? process.env.OLLAMA_BASE_URL;
+    if (ollamaHost || Object.keys(providers).length === 0) {
+      providers.ollama = new OllamaAdapter({
+        base_url: ollamaHost,
+        api_key: process.env.OLLAMA_API_KEY,
+        default_model: process.env.OLLAMA_MODEL,
       });
     }
 

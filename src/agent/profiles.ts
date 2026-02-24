@@ -153,6 +153,48 @@ export class GeminiProfile implements ProviderProfile {
   }
 }
 
+// ── Ollama Profile ─────────────────────────────────────────────────────
+
+export class OllamaProfile implements ProviderProfile {
+  provider = "ollama";
+  model: string;
+
+  constructor(model = "qwen3-coder:30b") {
+    this.model = model;
+  }
+
+  buildSystemPrompt(ctx: SystemPromptContext): string {
+    const base = buildBaseSystemPrompt(ctx);
+    return (
+      base +
+      `\n\n## Provider Notes
+- You are running as a local model via Ollama
+- Use the edit_file tool for modifying existing files
+- Use write_file for creating new files
+- Be precise with tool arguments — validate file paths before editing
+- If a tool call fails, read the error and retry with corrected arguments`
+    );
+  }
+
+  mapTools(tools: RegisteredTool[]): ToolDefinition[] {
+    return tools.map((t) => t.definition);
+  }
+
+  normalizeToolCalls(toolCalls: ToolCall[]): ToolCall[] {
+    // Local models may return stringified arguments
+    return toolCalls.map((tc) => {
+      if (typeof tc.arguments === "string") {
+        try {
+          return { ...tc, arguments: JSON.parse(tc.arguments as any) };
+        } catch {
+          return tc;
+        }
+      }
+      return tc;
+    });
+  }
+}
+
 // ── Profile Factory ────────────────────────────────────────────────────
 
 export function createProfile(provider: string, model?: string): ProviderProfile {
@@ -163,6 +205,8 @@ export function createProfile(provider: string, model?: string): ProviderProfile
       return new OpenAIProfile(model);
     case "gemini":
       return new GeminiProfile(model);
+    case "ollama":
+      return new OllamaProfile(model);
     default:
       throw new Error(`Unknown provider: ${provider}`);
   }

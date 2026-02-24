@@ -4,3 +4,5 @@ export { OpenAIAdapter } from "./openai.js";
 export type { OpenAIConfig } from "./openai.js";
 export { GeminiAdapter } from "./gemini.js";
 export type { GeminiConfig } from "./gemini.js";
+export { OllamaAdapter } from "./ollama.js";
+export type { OllamaConfig } from "./ollama.js";

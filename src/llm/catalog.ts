@@ -81,6 +81,58 @@ export const MODEL_CATALOG: ModelInfo[] = [
     supports_reasoning: true,
     aliases: ["gemini-flash", "gemini-3-flash"],
   },
+
+  // ── Ollama (local models) ─────────────────────────────────────────
+  {
+    id: "qwen3-coder:30b",
+    provider: "ollama",
+    display_name: "Qwen3 Coder 30B",
+    context_window: 131072,
+    supports_tools: true,
+    supports_vision: false,
+    supports_reasoning: true,
+    aliases: ["qwen3-coder"],
+  },
+  {
+    id: "qwen3:32b",
+    provider: "ollama",
+    display_name: "Qwen3 32B",
+    context_window: 131072,
+    supports_tools: true,
+    supports_vision: false,
+    supports_reasoning: true,
+    aliases: ["qwen3"],
+  },
+  {
+    id: "deepseek-coder-v2:latest",
+    provider: "ollama",
+    display_name: "DeepSeek Coder V2",
+    context_window: 131072,
+    supports_tools: true,
+    supports_vision: false,
+    supports_reasoning: false,
+    aliases: ["deepseek-coder"],
+  },
+  {
+    id: "llama3.3:70b",
+    provider: "ollama",
+    display_name: "Llama 3.3 70B",
+    context_window: 131072,
+    supports_tools: true,
+    supports_vision: false,
+    supports_reasoning: false,
+    aliases: ["llama3"],
+  },
+  {
+    id: "codellama:latest",
+    provider: "ollama",
+    display_name: "Code Llama",
+    context_window: 16384,
+    supports_tools: false,
+    supports_vision: false,
+    supports_reasoning: false,
+    aliases: ["codellama"],
+  },
 ];
 
 export function getModelInfo(modelId: string): ModelInfo | undefined {
