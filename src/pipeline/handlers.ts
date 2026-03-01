@@ -188,6 +188,13 @@ registerHandler(NodeShape.DIAMOND, async (ctx) => {
 
     let prompt = substituteVariables(ctx.node.prompt, ctx.context);
 
+    // Append explicit instructions about the expected response keywords
+    // so the LLM knows exactly what outcome labels are valid.
+    if (edgeLabels.length > 0) {
+      const labelList = edgeLabels.map((l) => `'${l}'`).join(", ");
+      prompt += `\n\n## IMPORTANT — Response format\nAfter your analysis, your FINAL message MUST begin with exactly one of these keywords: ${labelList}.\nYou may add a brief explanation after the keyword, but the keyword MUST be the very first word of your final response.`;
+    }
+
     try {
       const result = await ctx.codergen.execute({
         prompt,
@@ -203,10 +210,22 @@ registerHandler(NodeShape.DIAMOND, async (ctx) => {
 
       // Try to match an outgoing edge label anywhere in the response
       let outcome: string | undefined;
+
+      // Priority 1: check if the response starts with a known label
       for (const label of edgeLabels) {
-        if (normalized.includes(label)) {
+        if (normalized.startsWith(label)) {
           outcome = label;
           break;
+        }
+      }
+
+      // Priority 2: check if any known label appears anywhere
+      if (!outcome) {
+        for (const label of edgeLabels) {
+          if (normalized.includes(label)) {
+            outcome = label;
+            break;
+          }
         }
       }
 

@@ -305,6 +305,7 @@ export async function runPipeline(
       {
         outcome: result.outcome,
         duration_ms: result.duration_ms,
+        output: result.output,
       },
       node.id
     );

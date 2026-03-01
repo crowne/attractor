@@ -93,11 +93,16 @@ export function createVerboseLogger(
         );
         break;
 
-      case PipelineEventKind.NODE_EXIT:
+      case PipelineEventKind.NODE_EXIT: {
+        const outputSnippet = typeof event.data.output === "string"
+          ? event.data.output.slice(0, 120).replace(/\n/g, " ")
+          : "";
         console.log(
-          `${t} ${tag} ${BLUE}NODE_EXIT${RESET}   → ${nodeTag}  outcome=${WHITE}${event.data.outcome}${RESET}  ${DIM}(${event.data.duration_ms}ms)${RESET}`
+          `${t} ${tag} ${BLUE}NODE_EXIT${RESET}   → ${nodeTag}  outcome=${WHITE}${event.data.outcome}${RESET}  ${DIM}(${event.data.duration_ms}ms)${RESET}` +
+            (outputSnippet ? `\n${t} ${tag}   ${DIM}output: ${outputSnippet}${RESET}` : "")
         );
         break;
+      }
 
       case PipelineEventKind.NODE_RETRY: {
         console.log(
