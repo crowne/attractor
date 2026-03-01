@@ -183,6 +183,12 @@ export async function runPipeline(
 
     // Check if this is a terminal node
     if (graph.terminal_nodes.includes(currentNodeId)) {
+      emit(PipelineEventKind.NODE_ENTER, {
+        node_id: node.id,
+        shape: node.shape,
+        label: node.label,
+      }, node.id);
+
       // Execute terminal handler
       const handler = getHandler(node.shape);
       if (handler) {
@@ -209,7 +215,9 @@ export async function runPipeline(
     // Get handler for node shape
     const handler = getHandler(node.shape);
     if (!handler) {
-      errors.push(`No handler for shape '${node.shape}' on node '${node.id}'`);
+      const errMsg = `No handler for shape '${node.shape}' on node '${node.id}'`;
+      errors.push(errMsg);
+      emit(PipelineEventKind.ERROR, { message: errMsg }, node.id);
       if (abortOnError) break;
       // Try to continue to next node via first edge
       const nextEdge = graph.edges.find((e) => e.from === currentNodeId);
@@ -218,6 +226,12 @@ export async function runPipeline(
       executionCount++;
       continue;
     }
+
+    emit(PipelineEventKind.NODE_ENTER, {
+      node_id: node.id,
+      shape: node.shape,
+      label: node.label,
+    }, node.id);
 
     // Compute style
     const style = computeNodeStyle(node.id, node.classes, styleRules);
@@ -256,9 +270,9 @@ export async function runPipeline(
             retries,
             error: err.message,
           };
-          errors.push(
-            `Node '${node.id}' failed after ${retries} retries: ${err.message}`
-          );
+          const retryErr = `Node '${node.id}' failed after ${retries} retries: ${err.message}`;
+          errors.push(retryErr);
+          emit(PipelineEventKind.ERROR, { message: retryErr }, node.id);
           if (abortOnError) break;
         } else {
           emit(PipelineEventKind.NODE_RETRY, {
@@ -343,9 +357,9 @@ export async function runPipeline(
 
     if (!nextNodeId) {
       // No edge to follow — stuck
-      errors.push(
-        `No matching outgoing edge from node '${node.id}' with outcome '${context.outcome}'`
-      );
+      const edgeErr = `No matching outgoing edge from node '${node.id}' with outcome '${context.outcome}'`;
+      errors.push(edgeErr);
+      emit(PipelineEventKind.ERROR, { message: edgeErr }, node.id);
       break;
     }
 

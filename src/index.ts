@@ -58,6 +58,7 @@ import type { CodergenBackend } from "./pipeline/handlers.js";
 import type { Interviewer } from "./pipeline/human.js";
 import { AutoApproveInterviewer, ConsoleInterviewer } from "./pipeline/human.js";
 import type { PipelineEvent } from "./pipeline/types.js";
+import { PipelineEventKind } from "./pipeline/types.js";
 
 // ── Attractor Config ───────────────────────────────────────────────────
 
@@ -258,6 +259,8 @@ export class Attractor {
   // ── Private ──────────────────────────────────────────────────────────
 
   private createCodergenBackend(): CodergenBackend {
+    const onEvent = this.config.onEvent;
+
     return {
       execute: async (opts) => {
         // Create a session for this node
@@ -270,6 +273,23 @@ export class Attractor {
           execution_env: this.env,
           llm_client: this.client,
         });
+
+        // Forward agent session events through the pipeline onEvent callback
+        if (onEvent) {
+          session.events.onAny((event) => {
+            onEvent({
+              kind: PipelineEventKind.AGENT_EVENT,
+              pipeline_id: "",
+              node_id: opts.node_id,
+              timestamp: event.timestamp,
+              data: {
+                agent_event_kind: event.kind,
+                session_id: event.session_id,
+                ...event.data,
+              },
+            });
+          });
+        }
 
         // Build prompt with goal
         let prompt = opts.prompt;

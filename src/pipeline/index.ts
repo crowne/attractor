@@ -79,3 +79,9 @@ export {
   type QuestionChoice,
   type Answer,
 } from "./human.js";
+
+// Verbose Logger
+export {
+  createVerboseLogger,
+  type VerboseLoggerOptions,
+} from "./verbose-logger.js";

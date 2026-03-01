@@ -192,10 +192,50 @@ registerHandler(NodeShape.DIAMOND, async (ctx) => {
     type: "conditional",
   });
 
-  // For conditional nodes, we evaluate based on current context
-  // The edge selection logic in the engine handles the actual branching
-  // Here we just pass through with the current outcome
+  // If the diamond node has a prompt, run it through the LLM to determine
+  // the outcome (e.g. a review / gate node). Otherwise fall through with
+  // the current context outcome.
+  if (ctx.node.prompt) {
+    let prompt = substituteVariables(ctx.node.prompt, ctx.context);
 
+    try {
+      const result = await ctx.codergen.execute({
+        prompt,
+        model: ctx.style.model ?? ctx.node.model,
+        temperature: ctx.style.temperature,
+        max_tokens: ctx.style.max_tokens,
+        goal: ctx.node.goal,
+        node_id: ctx.node.id,
+      });
+
+      // Parse the LLM output to extract the outcome keyword.
+      // Convention: the first word of the response is the outcome label
+      // (e.g. "approved", "needs_work"). Fall back to full output.
+      const raw = result.output.trim();
+      const firstWord = raw.split(/\s+/)[0]?.toLowerCase() ?? raw;
+
+      return {
+        node_id: ctx.node.id,
+        outcome: firstWord,
+        label: ctx.node.label,
+        output: raw,
+        duration_ms: Date.now() - startTime,
+        retries: 0,
+      };
+    } catch (err: any) {
+      return {
+        node_id: ctx.node.id,
+        outcome: "error",
+        label: ctx.node.label,
+        output: "",
+        duration_ms: Date.now() - startTime,
+        retries: 0,
+        error: err.message,
+      };
+    }
+  }
+
+  // No prompt — pass through with existing outcome
   return {
     node_id: ctx.node.id,
     outcome: ctx.context.outcome,

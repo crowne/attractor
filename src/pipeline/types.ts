@@ -146,6 +146,7 @@ export enum PipelineEventKind {
   HUMAN_RESPONSE = "human_response",
   CONTEXT_UPDATE = "context_update",
   ERROR = "error",
+  AGENT_EVENT = "agent_event",
 }
 
 export interface PipelineEvent {
