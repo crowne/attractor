@@ -79,11 +79,6 @@ export function getHandler(shape: string): NodeHandler | undefined {
 registerHandler(NodeShape.ELLIPSE, async (ctx) => {
   const startTime = Date.now();
 
-  ctx.emit(PipelineEventKind.NODE_ENTER, {
-    node_id: ctx.node.id,
-    type: "start",
-  });
-
   return {
     node_id: ctx.node.id,
     outcome: "success",
@@ -118,11 +113,6 @@ registerHandler(NodeShape.DOUBLECIRCLE, async (ctx) => {
 
 registerHandler(NodeShape.BOX, async (ctx) => {
   const startTime = Date.now();
-
-  ctx.emit(PipelineEventKind.NODE_ENTER, {
-    node_id: ctx.node.id,
-    type: "codergen",
-  });
 
   // Build prompt from node label/prompt/goal
   let prompt = ctx.node.prompt ?? ctx.node.label;
@@ -187,15 +177,15 @@ registerHandler(NodeShape.BOX, async (ctx) => {
 registerHandler(NodeShape.DIAMOND, async (ctx) => {
   const startTime = Date.now();
 
-  ctx.emit(PipelineEventKind.NODE_ENTER, {
-    node_id: ctx.node.id,
-    type: "conditional",
-  });
-
   // If the diamond node has a prompt, run it through the LLM to determine
   // the outcome (e.g. a review / gate node). Otherwise fall through with
   // the current context outcome.
   if (ctx.node.prompt) {
+    // Collect known edge labels so we can match the LLM response to them
+    const edgeLabels = ctx.getOutgoingEdges()
+      .map((e) => e.label?.toLowerCase().trim())
+      .filter((l): l is string => !!l);
+
     let prompt = substituteVariables(ctx.node.prompt, ctx.context);
 
     try {
@@ -208,15 +198,26 @@ registerHandler(NodeShape.DIAMOND, async (ctx) => {
         node_id: ctx.node.id,
       });
 
-      // Parse the LLM output to extract the outcome keyword.
-      // Convention: the first word of the response is the outcome label
-      // (e.g. "approved", "needs_work"). Fall back to full output.
       const raw = result.output.trim();
-      const firstWord = raw.split(/\s+/)[0]?.toLowerCase() ?? raw;
+      const normalized = raw.toLowerCase();
+
+      // Try to match an outgoing edge label anywhere in the response
+      let outcome: string | undefined;
+      for (const label of edgeLabels) {
+        if (normalized.includes(label)) {
+          outcome = label;
+          break;
+        }
+      }
+
+      // Fallback: first word of the response
+      if (!outcome) {
+        outcome = raw.split(/\s+/)[0]?.toLowerCase() ?? raw;
+      }
 
       return {
         node_id: ctx.node.id,
-        outcome: firstWord,
+        outcome,
         label: ctx.node.label,
         output: raw,
         duration_ms: Date.now() - startTime,
@@ -296,11 +297,6 @@ registerHandler(NodeShape.HEXAGON, async (ctx) => {
 registerHandler(NodeShape.COMPONENT, async (ctx) => {
   const startTime = Date.now();
 
-  ctx.emit(PipelineEventKind.NODE_ENTER, {
-    node_id: ctx.node.id,
-    type: "parallel",
-  });
-
   // Fan-out: signal that all outgoing edges should be taken simultaneously
   // The actual parallelism is handled by the engine
 
@@ -319,11 +315,6 @@ registerHandler(NodeShape.COMPONENT, async (ctx) => {
 registerHandler(NodeShape.TRIPLEOCTAGON, async (ctx) => {
   const startTime = Date.now();
 
-  ctx.emit(PipelineEventKind.NODE_ENTER, {
-    node_id: ctx.node.id,
-    type: "fan_in",
-  });
-
   // Fan-in: wait for all parallel branches to complete
   // The engine tracks branch completion
 
@@ -341,11 +332,6 @@ registerHandler(NodeShape.TRIPLEOCTAGON, async (ctx) => {
 
 registerHandler(NodeShape.PLAIN, async (ctx) => {
   const startTime = Date.now();
-
-  ctx.emit(PipelineEventKind.NODE_ENTER, {
-    node_id: ctx.node.id,
-    type: "tool",
-  });
 
   // Tool nodes run a specific tool from the node's type or handler attribute
   // Delegate to codergen with tool-specific prompt
