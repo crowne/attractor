@@ -1,6 +1,6 @@
 {
   "name": "attractor",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "DOT-based pipeline runner for multi-stage AI workflows",
   "type": "module",
   "main": "dist/index.js",

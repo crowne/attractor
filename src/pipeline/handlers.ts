@@ -43,7 +43,7 @@ export type NodeHandler = (
  */
 export interface CodergenBackend {
   /**
-   * Execute an LLM task with the given prompt.
+   * Execute an LLM task with the given prompt (full agent loop with tools).
    * Returns the output text and outcome.
    */
   execute(opts: {
@@ -57,6 +57,19 @@ export interface CodergenBackend {
     output: string;
     outcome: string;
   }>;
+
+  /**
+   * Simple one-shot LLM classification — no tools, no agent loop.
+   * Sends a prompt and returns the raw text response.
+   * Ideal for review / gate nodes that just need a verdict.
+   */
+  classify(opts: {
+    prompt: string;
+    model?: string;
+    temperature?: number;
+    max_tokens?: number;
+    node_id: string;
+  }): Promise<string>;
 }
 
 // ── Handler Registry ───────────────────────────────────────────────────
@@ -178,8 +191,8 @@ registerHandler(NodeShape.DIAMOND, async (ctx) => {
   const startTime = Date.now();
 
   // If the diamond node has a prompt, run it through the LLM to determine
-  // the outcome (e.g. a review / gate node). Otherwise fall through with
-  // the current context outcome.
+  // the outcome (e.g. a review / gate node). Uses a direct one-shot LLM
+  // call (no agent loop / tools) so the response IS the verdict.
   if (ctx.node.prompt) {
     // Collect known edge labels so we can match the LLM response to them
     const edgeLabels = ctx.getOutgoingEdges()
@@ -189,29 +202,26 @@ registerHandler(NodeShape.DIAMOND, async (ctx) => {
     let prompt = substituteVariables(ctx.node.prompt, ctx.context);
 
     // Append explicit instructions about the expected response keywords
-    // so the LLM knows exactly what outcome labels are valid.
     if (edgeLabels.length > 0) {
       const labelList = edgeLabels.map((l) => `'${l}'`).join(", ");
-      prompt += `\n\n## IMPORTANT — Response format\nAfter your analysis, your FINAL message MUST begin with exactly one of these keywords: ${labelList}.\nYou may add a brief explanation after the keyword, but the keyword MUST be the very first word of your final response.`;
+      prompt += `\n\n## IMPORTANT — Response format\nYou MUST reply with exactly one of these keywords as the very first word: ${labelList}.\nYou may add a brief explanation after the keyword.\nDo NOT use any tools — reply directly with your verdict.`;
     }
 
     try {
-      const result = await ctx.codergen.execute({
+      const raw = await ctx.codergen.classify({
         prompt,
         model: ctx.style.model ?? ctx.node.model,
         temperature: ctx.style.temperature,
         max_tokens: ctx.style.max_tokens,
-        goal: ctx.node.goal,
         node_id: ctx.node.id,
       });
 
-      const raw = result.output.trim();
       const normalized = raw.toLowerCase();
 
-      // Try to match an outgoing edge label anywhere in the response
+      // Try to match an outgoing edge label
       let outcome: string | undefined;
 
-      // Priority 1: check if the response starts with a known label
+      // Priority 1: response starts with a known label
       for (const label of edgeLabels) {
         if (normalized.startsWith(label)) {
           outcome = label;
@@ -219,7 +229,7 @@ registerHandler(NodeShape.DIAMOND, async (ctx) => {
         }
       }
 
-      // Priority 2: check if any known label appears anywhere
+      // Priority 2: known label appears anywhere
       if (!outcome) {
         for (const label of edgeLabels) {
           if (normalized.includes(label)) {
@@ -229,7 +239,7 @@ registerHandler(NodeShape.DIAMOND, async (ctx) => {
         }
       }
 
-      // Fallback: first word of the response
+      // Fallback: first word
       if (!outcome) {
         outcome = raw.split(/\s+/)[0]?.toLowerCase() ?? raw;
       }

@@ -28,6 +28,7 @@ import * as path from "node:path";
 // ── Layer 1: Unified LLM Client ───────────────────────────────────────
 
 import { Client } from "./llm/client.js";
+import { Role, ContentKind } from "./llm/types.js";
 import type { LLMRequest, LLMResponse } from "./llm/types.js";
 
 // ── Layer 2: Coding Agent Loop ─────────────────────────────────────────
@@ -329,6 +330,63 @@ export class Attractor {
             outcome: "error",
           };
         }
+      },
+
+      classify: async (opts) => {
+        // Direct one-shot LLM call — no tools, no agent loop.
+        const model = opts.model ?? this.profile.model;
+        const provider = this.profile.provider;
+
+        if (onEvent) {
+          onEvent({
+            kind: PipelineEventKind.AGENT_EVENT,
+            pipeline_id: "",
+            node_id: opts.node_id,
+            timestamp: Date.now(),
+            data: { agent_event_kind: "llm_request", model, message_count: 1 },
+          });
+        }
+
+        const response = await this.client.complete({
+          model,
+          provider,
+          messages: [
+            {
+              role: Role.USER,
+              content: [{ kind: ContentKind.TEXT, text: opts.prompt }],
+            },
+          ],
+          temperature: opts.temperature,
+          max_tokens: opts.max_tokens,
+        });
+
+        // Extract text from response
+        const msg = response.message;
+        let text = "";
+        if (typeof msg.content === "string") {
+          text = msg.content;
+        } else if (Array.isArray(msg.content)) {
+          for (const part of msg.content) {
+            if (typeof part === "string") text += part;
+            else if (part && typeof part === "object" && "text" in part) text += (part as any).text ?? "";
+          }
+        }
+
+        if (onEvent) {
+          onEvent({
+            kind: PipelineEventKind.AGENT_EVENT,
+            pipeline_id: "",
+            node_id: opts.node_id,
+            timestamp: Date.now(),
+            data: {
+              agent_event_kind: "llm_response",
+              finish_reason: response.finish_reason,
+              usage: response.usage,
+            },
+          });
+        }
+
+        return text.trim();
       },
     };
   }
