@@ -12,15 +12,13 @@ Based on the [Attractor specification](https://github.com/strongdm/attractor).
 
 ## Prerequisites
 
-- **Node.js** 18 or later — [download](https://nodejs.org/)
-- **npm** (comes with Node.js)
+- **Bun** 1.0 or later — [download](https://bun.sh/)
 - **Ollama** (for local models) — [download](https://ollama.com/download)
 
 Verify your installations:
 
 ```bash
-node --version    # should print v18.x or later
-npm --version     # should print 9.x or later
+bun --version     # should print 1.x or later
 ollama --version  # should print 0.x.x or later
 ```
 
@@ -31,8 +29,8 @@ Clone and build the project first:
 ```bash
 git clone https://github.com/strongdm/attractor.git
 cd attractor
-npm install
-npm run build
+bun install
+bun run build
 ```
 
 This compiles TypeScript into `dist/` and makes Attractor available for local use.
@@ -92,41 +90,42 @@ cd c:\projects
 mkdir my-ai-pipeline
 cd my-ai-pipeline
 
-# Initialize a Node.js project
-npm init -y
+# Initialize a project
+bun init
 ```
 
 ### Step 4 — Link Attractor into Your Project
 
-Since Attractor is built locally, use `npm link` to make it available to your project:
+Since Attractor is built locally, use `bun link` to make it available to your project:
 
 ```bash
 # Terminal 1: In the attractor directory, register it globally
 cd c:\github\crowne\attractor
-npm link
+bun link
 
 # Terminal 2: In your project directory, link to it
 cd c:\projects\my-ai-pipeline
-npm link attractor
+bun link attractor
 ```
 
-Also configure your project for ES modules and TypeScript:
+Bun runs TypeScript natively, so no extra dev dependencies are needed.
 
-```bash
-npm install typescript tsx --save-dev
-```
-
-Edit `package.json` to add the module type:
+Edit `package.json` to add the module type and register attractor as a link dependency (required for bun to resolve the linked package):
 
 ```json
 {
   "name": "my-ai-pipeline",
   "type": "module",
   "scripts": {
-    "start": "npx tsx src/main.ts"
+    "start": "bun run src/main.ts"
+  },
+  "dependencies": {
+    "attractor": "link:attractor"
   }
 }
 ```
+
+> **Note:** The `"attractor": "link:attractor"` entry in `dependencies` is required for bun to resolve the linked package. Without it, imports from `"attractor"` will fail even after running `bun link attractor`.
 
 Create a `tsconfig.json`:
 
@@ -149,7 +148,7 @@ Your project structure should look like this:
 ```
 c:\projects\my-ai-pipeline\
 ├── node_modules/
-│   └── attractor -> c:\github\crowne\attractor   (symlink from npm link)
+│   └── attractor -> c:\github\crowne\attractor   (symlink from bun link)
 ├── src/
 │   └── main.ts        (you create this — see examples below)
 ├── package.json
@@ -161,7 +160,7 @@ c:\projects\my-ai-pipeline\
 Create `src/main.ts` with one of the examples below, then run it:
 
 ```bash
-npx tsx src/main.ts
+bun run src/main.ts
 ```
 
 ---
@@ -197,7 +196,7 @@ main().catch(console.error);
 **Run it:**
 
 ```bash
-npx tsx src/main.ts
+bun run src/main.ts
 ```
 
 The agent will use the local Ollama model to generate code and write it to disk in your current working directory.
@@ -246,7 +245,7 @@ main().catch(console.error);
 **Run it:**
 
 ```bash
-npx tsx src/main.ts
+bun run src/main.ts
 ```
 
 ### Example 3 — Using the LLM Client Directly (Ollama)
@@ -291,7 +290,7 @@ main().catch(console.error);
 **Run it:**
 
 ```bash
-npx tsx src/main.ts
+bun run src/main.ts
 ```
 
 ### Example 4 — Pipeline from a .dot File
@@ -341,7 +340,7 @@ main().catch(console.error);
 **Run it:**
 
 ```bash
-npx tsx src/main.ts
+bun run src/main.ts
 ```
 
 ### Example 5 — Using a Cloud Provider (Anthropic)
@@ -550,16 +549,29 @@ If Ollama crashes or responds very slowly, your model is too large for your avai
 ollama pull qwen3:8b
 ```
 
-### npm link not resolving
+### bun link not resolving
 
 If `import { Attractor } from "attractor"` fails after linking:
+
+1. Make sure your project's `package.json` includes attractor as a link dependency:
+
+```json
+{
+  "dependencies": {
+    "attractor": "link:attractor"
+  }
+}
+```
+
+2. Re-link and install:
 
 ```bash
 # Re-link (in attractor directory first, then your project)
 cd c:\github\crowne\attractor
-npm link
+bun link
 cd c:\projects\my-ai-pipeline
-npm link attractor
+bun link attractor
+bun install
 
 # Verify the link exists
 ls node_modules/attractor
@@ -567,13 +579,13 @@ ls node_modules/attractor
 
 ### TypeScript errors when running
 
-Make sure you're using `tsx` to run TypeScript directly:
+Make sure you're using `bun` to run TypeScript directly:
 
 ```bash
-npx tsx src/main.ts
+bun run src/main.ts
 ```
 
-Do **not** try to run `.ts` files with `node` directly — Node.js doesn't understand TypeScript natively.
+Bun runs TypeScript natively — no extra tooling required.
 
 ## License
 

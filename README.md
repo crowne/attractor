@@ -13,8 +13,8 @@ Based on the [Attractor specification](https://github.com/strongdm/attractor).
 ## Quick Start
 
 ```bash
-npm install
-npm run build
+bun install
+bun run build
 ```
 
 ### Run a Pipeline
