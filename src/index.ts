@@ -229,6 +229,24 @@ export class Attractor {
       llm_client: this.client,
     });
 
+    // Forward agent session events through onEvent if configured
+    if (this.config.onEvent) {
+      const onEvent = this.config.onEvent;
+      session.events.onAny((event) => {
+        onEvent({
+          kind: PipelineEventKind.AGENT_EVENT,
+          pipeline_id: "",
+          node_id: "agent",
+          timestamp: event.timestamp,
+          data: {
+            agent_event_kind: event.kind,
+            session_id: event.session_id,
+            ...event.data,
+          },
+        });
+      });
+    }
+
     const response = await processInput(session, prompt);
     return response.text;
   }
