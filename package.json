@@ -6,16 +6,16 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
-    "start": "tsx src/index.ts",
-    "test": "tsx src/test.ts"
+    "build": "bun build src/index.ts --outdir ./dist --target node && bun x tsc --declaration --emitDeclarationOnly --outDir dist",
+    "start": "bun run src/index.ts",
+    "test": "bun run src/test.ts",
+    "dev": "bun --watch src/index.ts"
   },
   "keywords": ["ai", "pipeline", "llm", "coding-agent", "workflow"],
   "author": "",
   "license": "Apache-2.0",
   "devDependencies": {
     "@types/node": "^25.3.0",
-    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }
 }
